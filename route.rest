@@ -1,0 +1,46 @@
+GET http://localhost:4000/countries
+
+###
+GET http://localhost:4000/countries/DE
+
+### university all
+GET http://localhost:4000/universities
+
+### university by id
+GET http://localhost:4000/universities/id/SE:jonkoping-university
+
+### university of specific country
+GET http://localhost:4000/universities/country/IT
+
+
+###
+GET http://localhost:4000/programs/university-of-technology-nuremberg:human-and-artificial-intelligence
+
+
+###
+GET http://localhost:4000/programs/srh-distance-learning-university/bachelors
+
+###
+GET http://localhost:4000/programs/srh-distance-learning-university/masters
+
+
+###
+GET http://localhost:4000/programs/university-of-technology-nuremberg/human-and-artificial-intelligence
+
+router.get('/:university_slug/:program_slug', async (req, res) => {
+    try {
+        const programDoc = await program.findOne({ id: req.params.id });
+
+        if (!programDoc) {
+            return res.status(404).json({ message: "Program not found" });
+        }
+
+        res.status(200).json({
+            doc: programDoc
+        });
+    } catch (error) {
+        // Log the error for server-side debugging
+        console.error("Error fetching single program by ID:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
