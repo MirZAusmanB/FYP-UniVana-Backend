@@ -10,10 +10,12 @@
     "devStart": "nodemon index.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "mongoose": "^8.19.2",
     "moongose": "^1.0.0",
+    "nodemailer": "^7.0.10",
     "nodemon": "^3.1.10"
   }
 }

@@ -31,7 +31,7 @@ router.post("/send-otp", async (req, res) => {
     await user.save();
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"UniVana" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Your OTP Code",
       text: `Your OTP is ${otp}. It expires in 10 minutes.`,
@@ -68,14 +68,17 @@ router.post("/signup", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
   try {
     const user = await User.findOne({ email });
-    if (!user || !user.isVerified)
+    if (!user || !user.isVerified) {
       return res.status(400).json({ message: "User not found or not verified" });
+    }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ message: "Invalid password" });
+    const match = await bcrypt.compare(password, user.password || "");
+    if (!match) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "2h" });
     res.json({ message: "Login successful", token });

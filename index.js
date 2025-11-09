@@ -6,6 +6,7 @@ const countriesRouter = require('./routes/country');
 const universityRouter = require('./routes/university');
 const programRouter = require('./routes/programs')
 const countryDetailRouter = require('./routes/countryDetail');
+const authRouter = require('./routes/auth');
 
 const app = express()
 const PORT = 4000;
@@ -30,7 +31,7 @@ app.use('/countries', countriesRouter)
 app.use('/universities', universityRouter)
 app.use('/programs', programRouter)
 app.use('/countrydetails', countryDetailRouter)
-
+app.use("/auth", authRouter);
 
 
 app.listen(PORT, () => {
