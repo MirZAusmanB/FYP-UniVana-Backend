@@ -2,7 +2,9 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const User = require("../models/user");
+const User = require("../models/User");
+const auth = require("../middleware/auth"); 
+const { findOne } = require("../models/Country");
 require("dotenv").config();
 
 const router = express.Router();
@@ -44,47 +46,150 @@ router.post("/send-otp", async (req, res) => {
 });
 
 router.post("/signup", async (req, res) => {
-  const { name, email, password, otp } = req.body;
+  const {name, email, password, otp} = req.body
   try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "No OTP requested for this email" });
-    if (user.isVerified) return res.status(400).json({ message: "User already verified" });
-    if (user.otp !== otp || user.otpExpires < Date.now()) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
+    const user = await User.findOne({email})
+    if (!user) {
+      return res.status(400).json({message:"No OTP requested for this email"})
+    }
+    if(user.isVerified){
+      return res.status(400).json({message:"User Already Existed"})
+    }
+    if (user.otp !== otp) {
+      return res.status(400).json({message:"Invalid OTP"})
+    }
+    if(user.otpExpires < Date.now)
+    {
+      return res.status(400).json({message:"OTP Expires"})
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10)
     user.name = name;
     user.password = hashed;
-    user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
+    user.isVerified = true
     await user.save();
-
-    res.json({ message: "Signup successful! You can now log in." });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.json({message: "Signup successful! You can now log in."})
+  } catch (error) {
+    res.status(500).json({message: error.message})
   }
 });
 
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body || {};
+router.post("/login", async (req, res) =>{
+  if (!req.body) {
+    return res.status(400).json({message: "Request body is empty"})
+  }
+  const {email, password} = req.body
   try {
-    const user = await User.findOne({ email });
-    if (!user || !user.isVerified) {
-      return res.status(400).json({ message: "User not found or not verified" });
+    const user = await User.findOne({email})
+    if (!user) {
+      return res.status(400).json({message:"User not found"})
+    }
+    if (!user.isVerified) {
+      return res.status(400).json({message:"User is not Verified"})
     }
 
-    const match = await bcrypt.compare(password, user.password || "");
-    if (!match) {
-      return res.status(400).json({ message: "Invalid email or password" });
+    const match = await bcrypt.compare(password, user.password)
+    if(!match){
+      return res.status(400).json({message:"Invalid email or password"})
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "2h" });
-    res.json({ message: "Login successful", token });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    const univanaAuthToken = jwt.sign(
+      {id: user._id, email: user.email, name: user.name},
+      process.env.JWT_SECRET,
+      {expiresIn: "2h"}
+    )
+
+    res.cookie("univanaAuthToken",univanaAuthToken,{
+      httpOnly: true,
+      maxAge: 2 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    })
+
+    res.json({message: "Login Successful"})
+
+  } catch (error) {
+     res.status(500).json({ message: error.message });
+  }
+})
+
+router.post("/logout", async(req, res) =>{
+  res.clearCookie("univanaAuthToken",{
+    httpOnly:true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  })
+  res.status(200).json({ message: "Logged out" });
+})
+
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password -otp -otpExpires");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
+
+router.post("/forgot-password",async (req,res) =>{
+  const {email} = req.body
+  try {
+    const user = await User.findOne({email})
+    if (!user) {
+      return res.status(400).json({message:"No account found with this email"})
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = Date.now() + 10 * 60 * 1000
+    
+    user.otp = otp
+    user.otpExpires = otpExpires
+    await user.save()
+
+    await transporter.sendMail({
+      from: `"UniVana" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Reset Your UniVana Password",
+      text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
+    });
+    
+    res.json({ message: "Password reset OTP sent to email" });
+
+  } catch (error) {
+      res.status(500).json({ message: error.message });
+  }
+})
+
+router.post("/reset-password", async (req, res)=>{
+  const {email, newPassword, otp} = req.body
+
+  try {
+    const user = await User.findOne({email})
+    if (!user) {
+      return res.status(400).json({message: "Invalid email"})
+    }
+    if (otp !== user.otp) {
+      return res.status(400).json({message: "Invalid OTP"})
+    }
+    if (Date.now > user.otpExpires) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10)
+
+    user.password = hashed
+    user.otp = undefined
+    user.otpExpires = undefined
+    user.save()
+
+    res.json({ message: "Password successfully reset!" });
+  } catch (error) {
+      res.status(500).json({ message: error.message });
+  }
+})
 
 module.exports = router;

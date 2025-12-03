@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router()
-const university = require('../models/university')
+const university = require('../models/University')
 
 
 //GET ALL

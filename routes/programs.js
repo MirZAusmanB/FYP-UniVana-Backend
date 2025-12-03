@@ -1,5 +1,5 @@
 const express = require('express');
-const Program = require('../models/program'); // (optional) PascalCase for models
+const Program = require('../models/Program'); // (optional) PascalCase for models
 const router = express.Router();
 
 router.get('/id/:id', async (req, res) => {

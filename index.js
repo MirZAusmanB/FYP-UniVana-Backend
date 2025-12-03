@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
 const cors = require("cors");
+const cookieParser = require("cookie-parser")
 const countriesRouter = require('./routes/country');
 const universityRouter = require('./routes/university');
 const programRouter = require('./routes/programs')
@@ -12,7 +13,8 @@ const app = express()
 const PORT = 4000;
 
 app.use(cors({
-    origin: "http://localhost:3000", 
+    origin: "http://localhost:3000",
+    credentials: true,  
 }))
 
 mongoose.connect(process.env.CONNECTION_STRING)
@@ -26,6 +28,8 @@ db.once('open', () =>{
 })
 
 app.use(express.json())
+app.use(cookieParser()); 
+
 
 app.use('/countries', countriesRouter)
 app.use('/universities', universityRouter)
