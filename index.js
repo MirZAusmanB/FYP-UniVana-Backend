@@ -21,7 +21,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-frontend.web.app" // replace with real frontend
+      "https://your-frontend.web.app" // change later
     ],
     credentials: true,
   })
@@ -31,8 +31,19 @@ app.use(express.json());
 app.use(cookieParser());
 
 /* =====================
+   DEBUG ENV (IMPORTANT)
+===================== */
+console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI ? "SET" : "MISSING");
+console.log("ENV CHECK → PORT:", process.env.PORT || "NOT SET");
+
+/* =====================
    MONGODB CONNECTION
 ===================== */
+if (!process.env.MONGO_URI) {
+  console.error("❌ FATAL: MONGO_URI is missing in Railway Variables");
+  process.exit(1);
+}
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Atlas connected"))
