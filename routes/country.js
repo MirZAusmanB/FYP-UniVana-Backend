@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router()
-const country = require('../models/Country');
+const country = require('../models/country');
 
 //GET ALL
 router.get('/', async (req,res) => {

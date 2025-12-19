@@ -8,6 +8,7 @@ const universityRouter = require('./routes/university');
 const programRouter = require('./routes/programs')
 const countryDetailRouter = require('./routes/countryDetail');
 const authRouter = require('./routes/auth');
+const profileRouter = require('./routes/userProfile')
 
 const app = express()
 const PORT = 4000;
@@ -24,7 +25,7 @@ db.on('error',(error) =>{
     console.log(error)
 } )
 db.once('open', () =>{
-    console.log('✅ Connected to MongoDB')
+    console.log('✅ MongoDB Atlas connected')
 })
 
 app.use(express.json())
@@ -36,7 +37,7 @@ app.use('/universities', universityRouter)
 app.use('/programs', programRouter)
 app.use('/countrydetails', countryDetailRouter)
 app.use("/auth", authRouter);
-
+app.use('/profile', profileRouter);
 
 app.listen(PORT, () => {
     console.log(`Server Started at Port ${PORT}`)

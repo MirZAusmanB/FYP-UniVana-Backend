@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const countryDetail = require('../models/CountryDetail');
+const countryDetail = require('../models/countryDetail');
 
 
 router.get('/:id', async (req, res) => {
