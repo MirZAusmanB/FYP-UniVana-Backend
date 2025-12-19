@@ -1,15 +1,13 @@
-
-
 {
   "name": "univana",
   "version": "1.0.0",
   "description": "FYP",
   "license": "ISC",
-  "author": "",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "devStart": "nodemon index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -17,8 +15,9 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "mongoose": "^8.19.2",
-    "moongose": "^1.0.0",
-    "nodemailer": "^7.0.10",
+    "nodemailer": "^7.0.10"
+  },
+  "devDependencies": {
     "nodemon": "^3.1.10"
   }
 }
