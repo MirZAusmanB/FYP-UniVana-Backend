@@ -19,7 +19,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-frontend.web.app" // add later
+      "https://fyp-univana.web.app" 
     ],
     credentials: true,
   })
