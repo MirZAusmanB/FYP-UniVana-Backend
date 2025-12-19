@@ -14,14 +14,12 @@ const profileRouter = require("./routes/userProfile");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-/* =====================
-   MIDDLEWARE
-===================== */
+// Middleware
 app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-frontend.web.app" // change later
+      "https://your-frontend.web.app" // add later
     ],
     credentials: true,
   })
@@ -30,17 +28,9 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-/* =====================
-   DEBUG ENV (IMPORTANT)
-===================== */
-console.log("ENV CHECK → MONGO_URI:", process.env.MONGO_URI ? "SET" : "MISSING");
-console.log("ENV CHECK → PORT:", process.env.PORT || "NOT SET");
-
-/* =====================
-   MONGODB CONNECTION
-===================== */
+// ✅ MongoDB connection
 if (!process.env.MONGO_URI) {
-  console.error("❌ FATAL: MONGO_URI is missing in Railway Variables");
+  console.error("❌ MONGO_URI is missing");
   process.exit(1);
 }
 
@@ -52,9 +42,7 @@ mongoose
     process.exit(1);
   });
 
-/* =====================
-   ROUTES
-===================== */
+// Routes
 app.use("/countries", countriesRouter);
 app.use("/universities", universityRouter);
 app.use("/programs", programRouter);
@@ -62,9 +50,7 @@ app.use("/countrydetails", countryDetailRouter);
 app.use("/auth", authRouter);
 app.use("/profile", profileRouter);
 
-/* =====================
-   START SERVER
-===================== */
+// Start server (Railway-safe)
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
