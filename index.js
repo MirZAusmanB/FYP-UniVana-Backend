@@ -1,44 +1,56 @@
-require('dotenv').config()
-const express = require('express')
-const mongoose = require('mongoose')
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
 const cors = require("cors");
-const cookieParser = require("cookie-parser")
-const countriesRouter = require('./routes/country');
-const universityRouter = require('./routes/university');
-const programRouter = require('./routes/programs')
-const countryDetailRouter = require('./routes/countryDetail');
-const authRouter = require('./routes/auth');
-const profileRouter = require('./routes/userProfile')
+const cookieParser = require("cookie-parser");
 
-const app = express()
-const PORT = 4000;
+const countriesRouter = require("./routes/country");
+const universityRouter = require("./routes/university");
+const programRouter = require("./routes/programs");
+const countryDetailRouter = require("./routes/countryDetail");
+const authRouter = require("./routes/auth");
+const profileRouter = require("./routes/userProfile");
 
-app.use(cors({
-    origin: "http://localhost:3000",
-    credentials: true,  
-}))
+const app = express();
+const PORT = process.env.PORT || 4000;
 
-mongoose.connect(process.env.CONNECTION_STRING)
-const db = mongoose.connection
+// Middleware
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://your-frontend.web.app" // add later
+    ],
+    credentials: true,
+  })
+);
 
-db.on('error',(error) =>{
-    console.log(error)
-} )
-db.once('open', () =>{
-    console.log('✅ MongoDB Atlas connected')
-})
+app.use(express.json());
+app.use(cookieParser());
 
-app.use(express.json())
-app.use(cookieParser()); 
+// ✅ MongoDB connection
+if (!process.env.MONGO_URI) {
+  console.error("❌ MONGO_URI is missing");
+  process.exit(1);
+}
 
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Atlas connected"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  });
 
-app.use('/countries', countriesRouter)
-app.use('/universities', universityRouter)
-app.use('/programs', programRouter)
-app.use('/countrydetails', countryDetailRouter)
+// Routes
+app.use("/countries", countriesRouter);
+app.use("/universities", universityRouter);
+app.use("/programs", programRouter);
+app.use("/countrydetails", countryDetailRouter);
 app.use("/auth", authRouter);
-app.use('/profile', profileRouter);
+app.use("/profile", profileRouter);
 
-app.listen(PORT, () => {
-    console.log(`Server Started at Port ${PORT}`)
-})
+// Start server (Railway-safe)
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
