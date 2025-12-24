@@ -4,7 +4,8 @@ const router = express.Router();
 
 router.get('/id/:id', async (req, res) => {
   try {
-    const programDoc = await Program.findOne({ id: req.params.id });
+    const { id } = req.params;
+    const programDoc = await Program.findById(id);
     if (!programDoc) {
       return res.status(404).json({ message: 'Program not found' });
     }
@@ -53,7 +54,7 @@ router.get('/:university_slug/programs/:program_slug', async (req, res) => {
 
     const programDoc = await Program.findOne({
       university_slug,
-      slug: program_slug, // assumes your Program schema has a 'slug' field
+      slug: program_slug, 
     });
 
     if (!programDoc) {

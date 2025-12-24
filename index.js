@@ -10,6 +10,9 @@ const programRouter = require("./routes/programs");
 const countryDetailRouter = require("./routes/countryDetail");
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/userProfile");
+const shortlistRouter = require("./routes/shortlist")
+const searchRoutes = require("./routes/search");
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -49,6 +52,8 @@ app.use("/programs", programRouter);
 app.use("/countrydetails", countryDetailRouter);
 app.use("/auth", authRouter);
 app.use("/profile", profileRouter);
+app.use("/shortlist",shortlistRouter)
+app.use("/api/search", searchRoutes);
 
 // Start server (Railway-safe)
 app.listen(PORT, "0.0.0.0", () => {

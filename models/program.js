@@ -54,4 +54,15 @@ const programSchema = new mongoose.Schema({
     }
 })
 
+programSchema.index({
+  name: "text",
+  title: "text",
+  degree: "text",
+  discipline: "text",
+  study_modes: "text",
+  delivery_modes: "text",
+  university_slug: "text",
+});
+
+
 module.exports = mongoose.model('Program', programSchema)
