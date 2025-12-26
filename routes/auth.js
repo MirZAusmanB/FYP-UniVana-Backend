@@ -7,50 +7,21 @@ const auth = require("../middleware/auth");
 require("dotenv").config();
 
 const router = express.Router();
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,          // smtp-relay.brevo.com
-  port: 587,
-  secure: false,                        // MUST be false for 587
+  service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER,       // Brevo SMTP login
-    pass: process.env.EMAIL_PASS,       // Brevo SMTP key
-  },
-  connectionTimeout: 15000,
-  socketTimeout: 15000,
-  tls: {
-    rejectUnauthorized: false,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-// Verify SMTP on server start (VERY IMPORTANT)
-transporter.verify((err, success) => {
-  if (err) {
-    console.error("❌ SMTP VERIFY FAILED:", err.message);
-  } else {
-    console.log("✅ SMTP VERIFY SUCCESS");
-  }
-});
-
-// Helper to prevent hanging
-function sendMailWithTimeout(mailOptions, ms = 15000) {
-  return Promise.race([
-    transporter.sendMail(mailOptions),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("SMTP timeout")), ms)
-    ),
-  ]);
-}
 
 router.post("/send-otp", async (req, res) => {
   const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-  }
-
   try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 min
 
     let user = await User.findOne({ email });
     if (!user) user = new User({ email });
@@ -58,34 +29,21 @@ router.post("/send-otp", async (req, res) => {
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
+    console.log("OTP API hit");
 
-    console.log("OTP API hit:", email);
-
-    const mailOptions = {
-      from: `"UniVana" <${process.env.EMAIL_FROM}>`,
+    console.log("Before sending email");
+    await transporter.sendMail({
+      from: `"UniVana" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "Your UniVana OTP Code",
+      subject: "Your OTP Code",
       text: `Your OTP is ${otp}. It expires in 10 minutes.`,
-    };
-
-    await sendMailWithTimeout(mailOptions, 15000);
-
-    console.log("OTP email sent successfully");
-
-    return res.status(200).json({
-      success: true,
-      message: "OTP sent to email",
     });
+
+    res.json({ message: "OTP sent to email" });
   } catch (err) {
-    console.error("OTP FAILED:", err.message);
-
-    return res.status(500).json({
-      success: false,
-      message: err.message || "OTP send failed",
-    });
+    res.status(500).json({ message: err.message });
   }
 });
-
 
 router.post("/signup", async (req, res) => {
   const {name, email, password, otp} = req.body
