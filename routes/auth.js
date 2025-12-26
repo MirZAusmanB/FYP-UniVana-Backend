@@ -17,12 +17,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 📩 Send OTP
+function sendMailWithTimeout(transporter, mailOptions, ms = 15000) {
+  return Promise.race([
+    transporter.sendMail(mailOptions),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("SMTP timeout")), ms)
+    ),
+  ]);
+}
+
 router.post("/send-otp", async (req, res) => {
   const { email } = req.body;
+
   try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 min
+    const otpExpires = Date.now() + 10 * 60 * 1000;
 
     let user = await User.findOne({ email });
     if (!user) user = new User({ email });
@@ -31,18 +40,24 @@ router.post("/send-otp", async (req, res) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    await transporter.sendMail({
-      from: `"UniVana" <${process.env.EMAIL_USER}>`,
+    console.log("OTP API hit:", email);
+
+    const mailOptions = {
+      from: `"UniVana" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: email,
       subject: "Your OTP Code",
       text: `Your OTP is ${otp}. It expires in 10 minutes.`,
-    });
+    };
 
-    res.json({ message: "OTP sent to email" });
+    await sendMailWithTimeout(transporter, mailOptions, 15000);
+
+    return res.status(200).json({ message: "OTP sent to email" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("OTP failed:", err);
+    return res.status(500).json({ message: err.message || "OTP failed" });
   }
 });
+
 
 router.post("/signup", async (req, res) => {
   const {name, email, password, otp} = req.body
