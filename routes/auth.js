@@ -8,6 +8,7 @@ require("dotenv").config();
 
 const router = express.Router();
 
+// Email transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -16,7 +17,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
+// 📩 Send OTP
 router.post("/send-otp", async (req, res) => {
   const { email } = req.body;
   try {
@@ -29,9 +30,7 @@ router.post("/send-otp", async (req, res) => {
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
-    console.log("OTP API hit");
 
-    console.log("Before sending email");
     await transporter.sendMail({
       from: `"UniVana" <${process.env.EMAIL_USER}>`,
       to: email,
