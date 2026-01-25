@@ -10,8 +10,6 @@ const countryDetailSchema = new mongoose.Schema(
     currency: String,
     population: String,
     famous_cities: { type: [String], default: [] },
-
-    // 👇 Flexible info array
     information: [
       {
         key: { type: String, required: true },

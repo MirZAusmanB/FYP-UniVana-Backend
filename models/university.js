@@ -31,7 +31,7 @@ const universitySchema = new mongoose.Schema(
       total: { type: Number },
       international_percent: { type: Number },
     },
-    rankings: { type: mongoose.Schema.Types.Mixed }, // Flexible (may contain multiple rank sources)
+    rankings: { type: mongoose.Schema.Types.Mixed }, 
     tags: [{ type: String }],
     description: { type: String },
 
