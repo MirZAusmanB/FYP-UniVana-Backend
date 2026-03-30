@@ -1,27 +1,24 @@
-// Backend/routes/userProfile.js
 const express = require("express");
 const router = express.Router();
 
 const auth = require("../middleware/auth");
 const UserProfile = require("../models/userProfile");
 
-// GET /profile/me - fetch current user's profile
 router.get("/me", auth, async (req, res) => {
   try {
     const profile = await UserProfile.findOne({ userId: req.user.id });
 
     if (!profile) {
-      return res.status(200).json(null); // frontend handles this
+      return res.status(200).json(null); 
     }
 
-    console.log("🟢 Profile found:", profile._id.toString());
+    console.log("Profile found:", profile._id.toString());
     res.json(profile);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch profile" });
   }
 });
 
-// POST /profile/me - create or update profile
 router.post("/me", auth, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -59,8 +56,8 @@ router.post("/me", auth, async (req, res) => {
       { userId },
       { $set: updateData, $setOnInsert: { userId } },
       {
-        new: true,              // return updated doc
-        upsert: true,           // create if not exists
+        new: true,              
+        upsert: true,           
         setDefaultsOnInsert: true,
       }
     );

@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router()
 const country = require('../models/country');
 
-//GET ALL
 router.get('/', async (req,res) => {
     try {
         const countries = await country.find()
@@ -16,7 +15,6 @@ router.get('/', async (req,res) => {
     }
 })
 
-//GET BY ID
 router.get('/:id', getCountry, (req, res) =>{
     res.json(req.country)
 })

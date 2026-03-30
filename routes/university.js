@@ -3,7 +3,6 @@ const router = express.Router()
 const university = require('../models/university')
 
 
-//GET ALL
 router.get('/', async (req, res) =>{
     try {
         const doc = await university.find()
@@ -17,7 +16,6 @@ router.get('/', async (req, res) =>{
     }
 })
 
-//GET BY ID
 router.get('/id/:id', async (req, res) =>{
     try {
         const doc  = await university.findById(req.params.id)
@@ -32,7 +30,6 @@ router.get('/id/:id', async (req, res) =>{
     }
 })
 
-//Get uni names
 router.get('/country/:country_id', async (req, res) =>{
     try {
         const doc = await university.find({country_id: req.params.country_id}).select('name')
@@ -48,7 +45,6 @@ router.get('/country/:country_id', async (req, res) =>{
         res.status(500).json({message: error.message})
     }
 })
-
 
 
 module.exports = router

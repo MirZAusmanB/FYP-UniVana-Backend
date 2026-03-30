@@ -5,7 +5,7 @@ const countryDetail = require('../models/countryDetail');
 
 router.get('/:id', async (req, res) => {
   try {
-    const id = String(req.params.id).trim().toUpperCase();  // normalize
+    const id = String(req.params.id).trim().toUpperCase();  
     const doc = await countryDetail.findById(id);
     if (!doc) return res.status(404).json({ message: `Country detail not found for _id=${id}` });
     res.status(200).json({ doc });
