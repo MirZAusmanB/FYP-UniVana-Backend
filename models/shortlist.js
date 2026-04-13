@@ -40,6 +40,15 @@ const ShortlistSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+
+    // User-chosen reminder dates (max 3). "sent" stops the reminder
+    // script from emailing the same date twice.
+    reminderDates: [
+      {
+        date: { type: Date },
+        sent: { type: Boolean, default: false },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -35,6 +35,8 @@ const universitySchema = new mongoose.Schema(
     tags: [{ type: String }],
     description: { type: String },
 
+    application_deadline: { type: Date, default: null },
+
     additional_information: [
       {
         title: { type: String },

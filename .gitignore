@@ -1,2 +1,4 @@
 node_modules
 .env
+track.txt*.txt
+*.txt

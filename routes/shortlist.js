@@ -21,7 +21,14 @@ router.get("/", async (req, res) => {
 
 router.post("/toggle", async (req, res) => {
   try {
-    const { itemType, itemKey, Name = "", city = "", uniName = "" } = req.body;
+    const {
+      itemType,
+      itemKey,
+      Name = "",
+      city = "",
+      uniName = "",
+      reminderDates = [], // optional array of date strings from the frontend
+    } = req.body;
 
     if (!itemType || !itemKey) {
       return res
@@ -33,8 +40,29 @@ router.post("/toggle", async (req, res) => {
       return res.status(400).json({ message: "Invalid itemType" });
     }
 
+    // Validate reminder dates (max 3, must be valid dates, must be in the future)
+    if (!Array.isArray(reminderDates)) {
+      return res.status(400).json({ message: "reminderDates must be an array" });
+    }
+    if (reminderDates.length > 3) {
+      return res.status(400).json({ message: "You can choose up to 3 reminder dates" });
+    }
+
+    const now = new Date();
+    const cleanReminders = [];
+    for (const d of reminderDates) {
+      const parsed = new Date(d);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({ message: "Invalid reminder date" });
+      }
+      if (parsed <= now) {
+        return res.status(400).json({ message: "Reminder dates must be in the future" });
+      }
+      cleanReminders.push({ date: parsed, sent: false });
+    }
+
     const exists = await Shortlist.findOne({
-      userId: req.user.id, 
+      userId: req.user.id,
       itemType,
       itemKey,
     });
@@ -50,7 +78,8 @@ router.post("/toggle", async (req, res) => {
       itemKey,
       Name,
       city,
-      uniName
+      uniName,
+      reminderDates: cleanReminders,
     });
 
     return res.json({ ok: true, saved: true });
