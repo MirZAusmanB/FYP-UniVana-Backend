@@ -95,7 +95,7 @@ router.post("/login", async (req, res) =>{
     }
 
     const univanaAuthToken = jwt.sign(
-      {id: user._id, email: user.email, name: user.name},
+      {id: user._id, email: user.email, name: user.name, role: user.role},
       process.env.JWT_SECRET,
       {expiresIn: "2h"}
     )

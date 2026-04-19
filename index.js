@@ -13,6 +13,7 @@ const profileRouter = require("./routes/userProfile");
 const shortlistRouter = require("./routes/shortlist")
 const searchRoutes = require("./routes/search");
 const chatRouter = require("./routes/chat");
+const adminRouter = require("./routes/admin");
 
 
 const app = express();
@@ -56,6 +57,7 @@ app.use("/profile", profileRouter);
 app.use("/shortlist",shortlistRouter)
 app.use("/api/search", searchRoutes);
 app.use("/api/chat", chatRouter);
+app.use("/admin", adminRouter);
 
 // Start server (Railway-safe)
 app.listen(PORT, "0.0.0.0", () => {
