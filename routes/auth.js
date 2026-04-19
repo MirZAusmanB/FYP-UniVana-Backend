@@ -2,9 +2,12 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/user");
-const auth = require("../middleware/auth"); 
+const auth = require("../middleware/auth");
 require("dotenv").config();
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
@@ -190,5 +193,53 @@ router.post("/reset-password", async (req, res)=>{
       res.status(500).json({ message: error.message });
   }
 })
+
+// Google Sign-In
+router.post("/google", async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) {
+    return res.status(400).json({ message: "Google credential is required" });
+  }
+
+  try {
+    // Verify the token with Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const { email, name } = ticket.getPayload();
+
+    // Find or create the user
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // New user — create account (no password needed, email already verified by Google)
+      user = await User.create({
+        name: name || "",
+        email,
+        isVerified: true,
+      });
+    }
+
+    // Issue our own JWT
+    const univanaAuthToken = jwt.sign(
+      { id: user._id, email: user.email, name: user.name, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.cookie("univanaAuthToken", univanaAuthToken, {
+      httpOnly: true,
+      maxAge: 2 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
+
+    res.json({ message: "Login Successful" });
+  } catch (error) {
+    res.status(401).json({ message: "Invalid Google credential" });
+  }
+});
 
 module.exports = router;
