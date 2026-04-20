@@ -92,6 +92,10 @@ router.post("/login", async (req, res) =>{
       return res.status(400).json({message:"User is not Verified"})
     }
 
+    if (!user.password) {
+      return res.status(400).json({message:"This account uses Google Sign-In. Please use the Google button to log in."})
+    }
+
     const match = await bcrypt.compare(password, user.password)
     if(!match){
       return res.status(400).json({message:"Invalid email or password"})

@@ -15,6 +15,9 @@ const path = require("path");
 // Where the scrapper scripts live (sibling directory)
 const SCRAPPERS_DIR = path.resolve(__dirname, "../FYP-UniVana-Scrappers");
 
+// Python command — override with PYTHON_CMD env var on Windows (e.g. "python" or "py")
+const PYTHON = process.env.PYTHON_CMD || "python3";
+
 // Each script we can run from the dashboard
 const SCRIPTS = {
   sendReminders: {
@@ -24,19 +27,19 @@ const SCRIPTS = {
     label: "Send Reminder Emails",
   },
   countriesScrapper: {
-    command: "python3",
+    command: PYTHON,
     args: ["countries_scrapper"],
     cwd: SCRAPPERS_DIR,
     label: "Countries Scrapper",
   },
   universityScrapper: {
-    command: "python3",
+    command: PYTHON,
     args: ["university_scrapper.py"],
     cwd: SCRAPPERS_DIR,
     label: "University Scrapper",
   },
   programsScrapper: {
-    command: "python3",
+    command: PYTHON,
     args: ["programs_scrapper.py"],
     cwd: SCRAPPERS_DIR,
     label: "Programs Scrapper",
