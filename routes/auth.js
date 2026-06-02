@@ -11,7 +11,6 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
-// Email transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -20,7 +19,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 📩 Send OTP
 router.post("/send-otp", async (req, res) => {
   const { email } = req.body;
   try {
@@ -198,7 +196,7 @@ router.post("/reset-password", async (req, res)=>{
   }
 })
 
-// Google Sign-In
+
 router.post("/google", async (req, res) => {
   const { credential } = req.body;
   if (!credential) {
@@ -206,7 +204,6 @@ router.post("/google", async (req, res) => {
   }
 
   try {
-    // Verify the token with Google
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -214,11 +211,9 @@ router.post("/google", async (req, res) => {
 
     const { email, name } = ticket.getPayload();
 
-    // Find or create the user
     let user = await User.findOne({ email });
 
     if (!user) {
-      // New user — create account (no password needed, email already verified by Google)
       user = await User.create({
         name: name || "",
         email,
@@ -226,7 +221,6 @@ router.post("/google", async (req, res) => {
       });
     }
 
-    // Issue our own JWT
     const univanaAuthToken = jwt.sign(
       { id: user._id, email: user.email, name: user.name, role: user.role },
       process.env.JWT_SECRET,

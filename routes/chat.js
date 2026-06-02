@@ -46,7 +46,6 @@ function softAuth(req, res, next) {
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
-    // ignore invalid token
   }
   next();
 }
