@@ -15,6 +15,7 @@ const searchRoutes = require("./routes/search");
 const chatRouter = require("./routes/chat");
 const adminRouter = require("./routes/admin");
 const recommendRouter = require("./routes/recommend");
+const translationRouter = require("./routes/translation");
 
 
 const app = express();
@@ -60,6 +61,7 @@ app.use("/api/search", searchRoutes);
 app.use("/api/chat", chatRouter);
 app.use("/admin", adminRouter);
 app.use("/api/recommend", recommendRouter);
+app.use("/translation", translationRouter);
 
 // Start server (Railway-safe)
 app.listen(PORT, "0.0.0.0", () => {

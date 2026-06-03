@@ -1,26 +1,9 @@
-/**
- * Reminder Email Sender
- *
- * What it does:
- *   Looks through everyone's shortlists, finds reminder dates that
- *   match today, and emails the user. Marks each reminder as "sent"
- *   so it won't email twice.
- *
- * How to run:
- *   node sendReminders.js
- *
- * To run it every day at 9 AM automatically (Linux/Mac):
- *   crontab -e
- *   0 9 * * * cd /path/to/FYP-UniVana-Backend && node sendReminders.js
- */
-
 require("dotenv").config();
 const mongoose = require("mongoose");
 const nodemailer = require("nodemailer");
 const Shortlist = require("./models/shortlist");
 const User = require("./models/user");
 
-// Email setup (same as auth.js)
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -33,15 +16,13 @@ async function main() {
   await mongoose.connect(process.env.MONGO_URI);
   console.log("Connected to MongoDB");
 
-  // Build "today" as a range from midnight to just-before-midnight.
-  // We only care about the day, not the hour.
+
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
-  // Find shortlist entries that have at least one unsent reminder for today.
   const entries = await Shortlist.find({
     reminderDates: {
       $elemMatch: {
@@ -68,7 +49,6 @@ async function main() {
       continue;
     }
 
-    // Loop through this entry's reminders and handle the ones due today
     for (const reminder of entry.reminderDates) {
       const isToday = reminder.date >= startOfDay && reminder.date <= endOfDay;
       if (!isToday || reminder.sent) continue;
