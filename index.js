@@ -22,12 +22,13 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3000")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://fyp-univana.web.app" 
-    ],
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -62,6 +63,8 @@ app.use("/api/chat", chatRouter);
 app.use("/admin", adminRouter);
 app.use("/api/recommend", recommendRouter);
 app.use("/translation", translationRouter);
+
+app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Start server (Railway-safe)
 app.listen(PORT, "0.0.0.0", () => {
