@@ -2,6 +2,7 @@ const express = require("express");
 const auth = require("../middleware/auth");
 const UserProfile = require("../models/userProfile");
 const University = require("../models/university");
+const Program = require("../models/program");
 const Country = require("../models/country");
 const Recommendation = require("../models/recommendation");
 const { embedQuery, vectorSearch } = require("../lib/retrieval");
@@ -9,16 +10,28 @@ const { embedQuery, vectorSearch } = require("../lib/retrieval");
 const router = express.Router();
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 4;
 
-// The 5 scraped countries — keeping this explicit (not querying DB on every
-// request) makes ranking deterministic.
+// Weights sum to 100 and define the maximum points each factor can contribute
+// to a country's overall match score.
+const WEIGHTS = {
+  vector:    30, // Field of interest (semantic match against programs + uni)
+  cgpa:      25, // Academic readiness
+  budget:    20, // Budget vs typical international tuition
+  preferred: 15, // Preferred-country boost
+  english:   10, // English proficiency
+};
+
+// The 5 scraped countries plus typical international-student tuition baseline
+// (USD/year, rough public-uni average). Used for budget scoring AND for the
+// tuition chart in the "More details" popup. Sources cited in the UI as
+// "typical public-university tuition for international students".
 const COUNTRIES = [
-  { code: "FR", name: "France",  slug: "france"  },
-  { code: "DE", name: "Germany", slug: "germany" },
-  { code: "IT", name: "Italy",   slug: "italy"   },
-  { code: "NO", name: "Norway",  slug: "norway"  },
-  { code: "SE", name: "Sweden",  slug: "sweden"  },
+  { code: "FR", name: "France",  slug: "france",  typicalTuitionUsd: 3000  },
+  { code: "DE", name: "Germany", slug: "germany", typicalTuitionUsd: 1500  },
+  { code: "IT", name: "Italy",   slug: "italy",   typicalTuitionUsd: 4000  },
+  { code: "NO", name: "Norway",  slug: "norway",  typicalTuitionUsd: 10000 },
+  { code: "SE", name: "Sweden",  slug: "sweden",  typicalTuitionUsd: 12000 },
 ];
 
 const SYSTEM_PROMPT = `You are UniVana's recommendation explainer. The user profile and a list of pre-ranked candidate countries and universities are provided. The ranking has already been computed from vector similarity. Your job is ONLY to write short, grounded reasons.
@@ -35,12 +48,19 @@ STRICT RULES:
 // Mixing them into the embedding dilutes the semantic signal that drives
 // university matching.
 function buildInterestsBlob(profile) {
+  const fields = (profile.targetFields || []).join(", ");
+  // Repeat target fields a few times so the embedding weighs them heavier
+  // than the longer bio text (Jina v3 averages tokens, so repetition shifts
+  // the centroid toward the repeated content).
+  const weightedFields = fields ? `${fields}. ${fields}. ${fields}.` : "";
   const parts = [
-    (profile.targetFields || []).join(", "),
-    profile.profileBio,
+    weightedFields,
+    profile.targetDegreeLevel && fields
+      ? `${profile.targetDegreeLevel} in ${fields}`
+      : profile.targetDegreeLevel,
     (profile.studyPriorities || []).join(", "),
     profile.currentProgram,
-    profile.targetDegreeLevel,
+    profile.profileBio,
   ];
   return parts.filter((p) => p && String(p).trim()).join(". ");
 }
@@ -77,6 +97,42 @@ function profileGate(profile) {
     (profile.studyPriorities && profile.studyPriorities.length > 0);
   if (!hasContext) missing.push("profileBio_or_currentProgram_or_studyPriorities");
   return missing;
+}
+
+// 0..1 normalised "fit" functions. Each is multiplied by its weight when
+// scoring a country. Missing input returns null → factor contributes 0
+// and the country's max-possible score drops by that weight.
+
+function clamp01(x) {
+  if (x < 0) return 0;
+  if (x > 1) return 1;
+  return x;
+}
+
+// Academic readiness. Normalises across common scales (4 / 10 / 100) then
+// maps "fail/low" → 0 and "very strong" → 1 linearly between thresholds.
+function cgpaFit(cgpa) {
+  if (cgpa == null || isNaN(cgpa)) return null;
+  const num = Number(cgpa);
+  let n;
+  if (num <= 4)       n = num / 4;
+  else if (num <= 10) n = num / 10;
+  else                n = num / 100;
+  // Below 0.5 → 0; between 0.5 and 0.9 → linear 0..1; >= 0.9 → 1.
+  return clamp01((n - 0.5) / 0.4);
+}
+
+// Tuition fit per country. 1.0 when the user's budget covers the typical
+// international tuition; linear down to 0 when budget == 0.
+function budgetFit(budgetMax, typicalTuitionUsd) {
+  if (budgetMax == null) return null;
+  return clamp01(budgetMax / Math.max(1, typicalTuitionUsd));
+}
+
+// English proficiency (IELTS scale). 5.5 → 0, 7.5+ → 1.
+function englishFit(score) {
+  if (score == null) return null;
+  return clamp01((Number(score) - 5.5) / 2.0);
 }
 
 // Trim a university doc to the fields the LLM actually needs. Smaller prompt
@@ -192,28 +248,89 @@ async function generate(profile) {
   const interests = buildInterestsBlob(profile);
   const queryVec = await embedQuery(interests);
 
-  // Per-country vector search. 15 candidates each so the mean-top-5 score
-  // is stable.
+  // Program-level vector search across the whole corpus. Program docs carry
+  // discipline / degree / name which align directly with the user's target
+  // fields, so this signal is much sharper than matching against university
+  // descriptions alone.
+  const programHits = await vectorSearch(Program, queryVec, 200, null);
+
+  // Aggregate top-3 program scores per university_slug. Top-3 mean rewards
+  // universities offering MULTIPLE relevant programs over those with a
+  // single tangential match.
+  const programScoreBySlug = new Map();
+  const programBuckets = new Map();
+  for (const p of programHits) {
+    const slug = p.university_slug;
+    if (!slug) continue;
+    const arr = programBuckets.get(slug) || [];
+    arr.push(p.vecScore || 0);
+    programBuckets.set(slug, arr);
+  }
+  for (const [slug, scores] of programBuckets.entries()) {
+    scores.sort((a, b) => b - a);
+    const top = scores.slice(0, 3);
+    const mean = top.reduce((s, v) => s + v, 0) / top.length;
+    programScoreBySlug.set(slug, mean);
+  }
+
+  // Per-country university vector search.
   const perCountry = await Promise.all(
     COUNTRIES.map(async (c) => {
-      const unis = await vectorSearch(University, queryVec, 15, { country_id: c.code });
-      return { country: c, unis };
+      const unis = await vectorSearch(University, queryVec, 20, { country_id: c.code });
+      // Blend: 0.4 * university semantic + 0.6 * program-aggregate semantic.
+      // Programs carry the actual disciplines, so they're weighted higher.
+      // Unis with NO matching programs in the top-200 fall back to pure uni
+      // score (but get pushed down naturally).
+      for (const u of unis) {
+        const progScore = programScoreBySlug.get(u.slug) || 0;
+        const uniScore = u.vecScore || 0;
+        u.blendedScore = progScore > 0
+          ? 0.4 * uniScore + 0.6 * progScore
+          : uniScore * 0.7;
+        u.programScore = progScore;
+        u.vecScore = u.blendedScore;
+      }
+      unis.sort((a, b) => b.blendedScore - a.blendedScore);
+      return { country: c, unis: unis.slice(0, 15) };
     })
   );
 
-  // Score each country: mean of top-5 vecScores + boosts.
+  // Score each country: weighted sum of factor fits, total caps at 100.
   const tuitionMax = profile.tuitionBudgetMax;
   const englishOK = profile.englishScore && profile.englishScore >= 6.5;
   const preferred = new Set((profile.preferredCountries || []).map((s) => s.toLowerCase()));
 
+  const cgpaF = cgpaFit(profile.currentCGPA);            // 0..1 or null
+  const englishF = englishFit(profile.englishScore);     // 0..1 or null
+
   const scored = perCountry.map(({ country, unis }) => {
     const top5 = unis.slice(0, 5);
-    const baseScore = top5.length
+    const vectorFit = top5.length
       ? top5.reduce((s, u) => s + (u.vecScore || 0), 0) / top5.length
       : 0;
-    const preferredBoost = preferred.has(country.name.toLowerCase()) ? 0.05 : 0;
-    const score = Math.min(1, baseScore + preferredBoost);
-    return { country, unis, score, baseScore, preferredBoost };
+    const preferredFit = preferred.has(country.name.toLowerCase()) ? 1 : 0;
+    const budgetF = budgetFit(tuitionMax, country.typicalTuitionUsd);
+
+    // Each factor's points: fit (0..1) × its weight. Missing inputs
+    // contribute 0 (the user sees a lower max-possible score, with the
+    // "factor missing" chip in the modal explaining why).
+    const points = {
+      vector:    vectorFit                * WEIGHTS.vector,
+      cgpa:      (cgpaF ?? 0)             * WEIGHTS.cgpa,
+      budget:    (budgetF ?? 0)           * WEIGHTS.budget,
+      preferred: preferredFit             * WEIGHTS.preferred,
+      english:   (englishF ?? 0)          * WEIGHTS.english,
+    };
+    const total = Math.min(100,
+      points.vector + points.cgpa + points.budget + points.preferred + points.english
+    );
+
+    return {
+      country,
+      unis,
+      score: total / 100,    // keep 0..1 for downstream rounding
+      breakdown: points,     // raw points per factor for the chart
+    };
   });
 
   scored.sort((a, b) => b.score - a.score);
@@ -255,8 +372,17 @@ async function generate(profile) {
     }
   }
 
+  // Which profile fields actually influenced this run.
+  const factorsUsed = {
+    vector: true,
+    preferred: (profile.preferredCountries || []).length > 0,
+    cgpa: profile.currentCGPA != null,
+    budget: profile.tuitionBudgetMax != null,
+    english: profile.englishScore != null,
+  };
+
   // Assemble the final payload.
-  const countries = top3.map(({ country, unis, score }) => {
+  const countries = top3.map(({ country, unis, score, breakdown }) => {
     const llm = llmByCode.get(country.code);
     const top5Unis = unis.slice(0, 5);
 
@@ -264,14 +390,26 @@ async function generate(profile) {
       code: country.code,
       name: country.name,
       matchScore: Math.round(score * 100),
-      budgetFit: tuitionMax ? top5Unis.length > 0 : null,
+      typicalTuitionUsd: country.typicalTuitionUsd,
+      scoreBreakdown: {
+        vector:    Math.round(breakdown.vector),
+        cgpa:      Math.round(breakdown.cgpa),
+        budget:    Math.round(breakdown.budget),
+        preferred: Math.round(breakdown.preferred),
+        english:   Math.round(breakdown.english),
+      },
+      maxPoints: WEIGHTS,
+      budgetFit: tuitionMax ? tuitionMax >= country.typicalTuitionUsd : null,
       englishMet: profile.englishScore ? englishOK : null,
       reasons: llm?.reasons?.length ? llm.reasons : templatedReasons(profile, country),
-      universities: top5Unis.slice(0, 4).map((u) => ({
+      universities: top5Unis.slice(0, 5).map((u) => ({
         slug: u.slug,
         name: u.name,
         city: u.city || "",
         matchScore: Math.round((u.vecScore || 0) * 100),
+        studentsTotal: u.students?.total || null,
+        internationalPercent: u.students?.international_percent || null,
+        foundedYear: u.founded_year || null,
         reasons: llm?.byUni?.get(u.slug)?.length
           ? llm.byUni.get(u.slug)
           : templatedUniReasons(profile, u),
@@ -287,6 +425,7 @@ async function generate(profile) {
     generatedAt: new Date().toISOString(),
     profileCompleteness: completeness,
     degraded,
+    factorsUsed,
     countries,
   };
 }

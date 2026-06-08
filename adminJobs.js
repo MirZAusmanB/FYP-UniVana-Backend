@@ -3,7 +3,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const AdminJob = require("./models/adminJob");
 
-const SCRAPPERS_DIR = path.resolve(__dirname, "../Scrappers");
+const SCRAPPERS_DIR = path.resolve(__dirname, "../FYP-UniVana-Scrappers");
 
 const PYTHON = process.env.PYTHON_CMD || "python3";
 
@@ -16,7 +16,7 @@ const SCRIPTS = {
   },
   countriesScrapper: {
     command: PYTHON,
-    args: ["countries_scrapper.py"],
+    args: ["countries_scrapper"],
     cwd: SCRAPPERS_DIR,
     label: "Countries Scrapper",
   },

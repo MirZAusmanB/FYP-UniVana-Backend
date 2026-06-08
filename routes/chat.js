@@ -19,7 +19,7 @@ const REFUSAL =
   "I don't have that in my database. Try searching for universities or countries directly, or ask about France, Germany, Italy, Norway, or Sweden.";
 
 // Strict prompt for Policy B — the model is told NOT to use general knowledge.
-const SYSTEM_PROMPT = `You are UniVana Assistant, a chatbot for UniVana — a study abroad platform focused on European universities (France, Germany, Italy, Norway, Sweden).
+const SYSTEM_PROMPT = `You are Athena, a chatbot for UniVana — a study abroad platform focused on European universities (France, Germany, Italy, Norway, Sweden).
 
 STRICT RULES:
 1. Answer ONLY using the DATABASE CONTEXT below. Do not use general knowledge.
@@ -50,12 +50,12 @@ const GREETING_RE = /^(hi|hello|hey|thanks|thank you|bye|goodbye|who are you|wha
 function greetingReply(msg) {
   const m = msg.toLowerCase().replace(/[\s!.?]+$/, "").trim();
   if (m === "hi" || m === "hello" || m === "hey") {
-    return "Hi! I'm the UniVana Assistant. Ask me about universities, programs, or countries — France, Germany, Italy, Norway, or Sweden.";
+    return "Hi! I'm the Athena. Ask me about universities, programs, or countries — France, Germany, Italy, Norway, or Sweden.";
   }
   if (m.startsWith("thank")) return "You're welcome!";
   if (m === "bye" || m === "goodbye") return "Goodbye — happy studying!";
   if (m === "who are you") {
-    return "I'm UniVana Assistant — I help you discover European universities and study programs.";
+    return "I'm Athena — I help you discover European universities and study programs.";
   }
   if (m === "what can you do") {
     return "I can help you explore universities, study programs, and countries (France, Germany, Italy, Norway, Sweden). Just ask!";
