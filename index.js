@@ -16,6 +16,7 @@ const chatRouter = require("./routes/chat");
 const adminRouter = require("./routes/admin");
 const recommendRouter = require("./routes/recommend");
 const translationRouter = require("./routes/translation");
+const compareRouter = require("./routes/compare");
 
 
 const app = express();
@@ -63,6 +64,7 @@ app.use("/api/chat", chatRouter);
 app.use("/admin", adminRouter);
 app.use("/api/recommend", recommendRouter);
 app.use("/translation", translationRouter);
+app.use("/api/compare", compareRouter);
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
